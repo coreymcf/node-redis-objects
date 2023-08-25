@@ -22,19 +22,17 @@ Using NPM:
 $ npm install redis-json
 ```
 
-## Usage
-
-Start by including and creating a new redis-objects interface.
+## Basic Usage
 
 ``` javascript
+// Start by importing redis-objects.
 const RedisObjects = require('redis-objects');
 
-
-// Initialize interface w/optional params
-const redisObjects = new RedisObjects(); // Supply optional config object (see below)
+// Create new RedisObjects interface (config optional)
+const redisObjects = new RedisObjects(); 
 ```
 
-### config
+### config object
 ``` javascript
 const config = {
     redis: false,           // Supply already-created ioRedis connection 
@@ -48,9 +46,11 @@ const config = {
     cacheMode: false,       // Optional values: false,"realtime","snapshot" 
                             // By default (or false), no caching is used
 }
+
+const redisObjects = new RedisObjects(config);
 ```
 
-### put
+### put( objectName, objectValue ) 
 
 Writes an object to Redis
 
