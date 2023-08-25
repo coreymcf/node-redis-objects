@@ -32,7 +32,7 @@ const RedisObjects = require('redis-objects');
 const redisObjects = new RedisObjects(); 
 ```
 
-### config object
+## Config
 ``` javascript
 const config = {
     redis: false,           // Supply already-created ioRedis connection 
@@ -49,6 +49,8 @@ const config = {
 
 const redisObjects = new RedisObjects(config);
 ```
+
+## Commands
 
 ### put( objectName, objectValue ) 
 
