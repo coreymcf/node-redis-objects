@@ -33,7 +33,7 @@ const redisObjects = new RedisObjects();
 ```
 
 ## Config
-``` javascript
+```js
 const config = {
     redis: false,           // Supply already-created ioRedis connection 
                             // (spawns its own if absent)
@@ -52,11 +52,20 @@ const redisObjects = new RedisObjects(config);
 
 ## Commands
 
+### getObject( path )
+
+Get an object from redis recursively
+
+```js
+const storedObject = await redisObjects.getObject("someObject");
+```
+
+
 ### put( objectName, objectValue ) 
 
 Writes an object to Redis
 
-``` javascript
+```js
 
 await redisObjects.put("someObject", {
     key1: "1234",
@@ -72,4 +81,17 @@ await redisObjects.put("someObject", {
 
 ```
 
+### updateObject ( { path, value, key, oldValue, ttl } )
+
+Save (or delete) object values.  (Structurally compatible with on-change package.)
+
+```js
+await redisObjects.updateObject({
+    path: `someObject`,
+    value: "1234",
+    key: `key1`,
+    oldValue: false,
+    ttl: false,
+});
+```
 
