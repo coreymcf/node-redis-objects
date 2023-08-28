@@ -4,13 +4,18 @@
  *  @license MIT
  *  @author Corey S. McFadden <coreymcf@gmail.com>
  */
-import { Redis } from "ioredis";
-import events from "events";
-import flatten from "flat";
-import isEqual from "lodash/isEqual.js";
-import { getValueType, isJSON } from "./utls.mjs";
+const Redis = require("ioredis");
+const isEqual = require("lodash.isequal");
+const events = require("events");
+const flatten = require("flat");
+const { getValueType, isJSON } = require("./utls.js");
+//import Redis from "ioredis";
+// import isEqual from "lodash/isEqual.js";
+// import events from "events";
+// import flatten from "flat";
+// import { getValueType, isJSON } from "./utls.mjs";
 
-export class RedisObjects extends events.EventEmitter {
+class RedisObjects extends events.EventEmitter {
   constructor(props) {
     super(props);
 
@@ -20,13 +25,13 @@ export class RedisObjects extends events.EventEmitter {
     this.queueLock = false; // Update lock
 
     // Connect to ioRedis
-    this._connect();
+    this._connect(props);
   }
 
   /**
    * Connect to ioRedis and manage connection
    */
-  _connect() {
+  _connect(props) {
     // ioRedis Client
     this.client = props?.redis
       ? props.redis
@@ -36,6 +41,11 @@ export class RedisObjects extends events.EventEmitter {
 
     this.client.on("connect", () => {
       this.emit("connect", `RedisObjects connected to Redis.`);
+    });
+
+    this.client.on("error", (err) => {
+      console.log(`error`, err);
+      this.emit("error", `RedisObjects error ${err}`);
     });
 
     /**
@@ -119,7 +129,6 @@ export class RedisObjects extends events.EventEmitter {
       // Type checking
       switch (type) {
         case "string":
-        case "number":
           if (item) {
             await redis.hset(key, item, value);
           } else {
@@ -128,13 +137,20 @@ export class RedisObjects extends events.EventEmitter {
           break;
 
         case "date":
+          await redis.set(metaKey, JSON.stringify({ type }));
+          setMeta = true;
+          if (item) {
+            await redis.hset(key, item, value.toISOString());
+          } else {
+            await redis.set(key, value.toISOString());
+          }
+          break;
+
+        case "number":
         case "raw":
         case "json":
         case "boolean":
-          await redis.set(
-            metaKey,
-            JSON.stringify({ type: type === "json" ? "raw" : type })
-          );
+          await redis.set(metaKey, JSON.stringify({ type }));
           setMeta = true;
           if (item) {
             await redis.hset(key, item, value);
@@ -152,9 +168,25 @@ export class RedisObjects extends events.EventEmitter {
           }
           break;
 
+        case "function":
+          await redis.set(
+            metaKey,
+            JSON.stringify({
+              type: !value.toString().includes("function")
+                ? "es6_function"
+                : type,
+            })
+          );
+          setMeta = true;
+          if (item) {
+            await redis.hset(key, item, JSON.stringify(value.toString()));
+          } else {
+            await redis.set(key, JSON.stringify(value.toString()));
+          }
+          break;
+
         case "null":
         case "map":
-        case "function":
         case "set":
           await redis.set(metaKey, JSON.stringify({ type }));
           setMeta = true;
@@ -193,10 +225,45 @@ export class RedisObjects extends events.EventEmitter {
   }
 
   /**
+   * Close Redis connection
+   */
+  async close() {
+    await this.client.disconnect();
+  }
+
+  /**
+   * Run abitrary ioredis command
+   * @param {string} cmd - Command name
+   * @param {*} params - Parameters
+   * @returns
+   */
+  async call(cmd, params) {
+    try {
+      if (params) {
+        return await this.client.call(cmd, params);
+      } else {
+        return await this.client.call(cmd);
+      }
+
+      if (this.client[`${cmd}`]) {
+        if (params) {
+          return await this.client[`${cmd}`](params);
+        } else {
+          return await this.client[`${cmd}`];
+        }
+      } else {
+        throw new Error(`RedisObjects exec ERROR: Command not found '${cmd}'.`);
+      }
+    } catch (err) {
+      throw new Error(`RedisObjects exec ERROR: ${err}`);
+    }
+  }
+
+  /**
    * Flush cache (delete all)
    * @returns Promise
    */
-  async flushAll() {
+  async flushall() {
     return new Promise(async (resolve, reject) => {
       try {
         await this.client.flushall();
@@ -212,7 +279,7 @@ export class RedisObjects extends events.EventEmitter {
    * @param {string} path
    * @returns Object
    */
-  async getObject(path) {
+  async get(path) {
     return new Promise(async (resolve) => {
       try {
         const redis = this.client;
@@ -246,8 +313,11 @@ export class RedisObjects extends events.EventEmitter {
                     _ktype = mk.type;
                   }
                   switch (_ktype) {
+                    case "number":
+                      d[k] = Number(d[k]);
+                      break;
                     case "date":
-                      d[k] = new Date(Number(d[k]));
+                      d[k] = new Date(Date.parse(d[k]));
                       break;
                     case "map":
                       d[k] = isJSON(d[k]) ? new Map(JSON.parse(d[k])) : d[k];
@@ -261,8 +331,20 @@ export class RedisObjects extends events.EventEmitter {
                     case "set":
                       d[k] = isJSON(d[k]) ? new Set(JSON.parse(d[k])) : d[k];
                       break;
+                    case "es6_function":
+                      const efunc = JSON.parse(d[k]) || "";
+                      const efax = efunc.match(/\(([^)]*)\)/);
+                      const efArgs = efax
+                        ? efax[1].split(",").map((arg) => arg.trim())
+                        : [];
+                      const efBody = (efunc.match(/(?<={)([\s\S]*)(?=})/) || [
+                        "",
+                      ])[0];
+                      d[k] = eval(`(${efArgs.join(", ")}) => {${efBody}}`);
+                      break;
                     case "function":
-                      const func = JSON.parse(d[k]);
+                      const func = JSON.parse(d[k]) || "";
+                      const funcname = func.match(/^function (\w+)/) || "";
                       const fax = func.match(/\(([^)]*)\)/);
                       const fArgs = fax
                         ? fax[1].split(",").map((arg) => arg.trim())
@@ -270,7 +352,15 @@ export class RedisObjects extends events.EventEmitter {
                       const fBody = (func.match(/(?<={)([\s\S]*)(?=})/) || [
                         "",
                       ])[0];
-                      d[k] = new Function(...fArgs, fBody);
+                      //                      d[k] = new Function(...fArgs, fBody);
+                      d[k] = new Function(
+                        ...fArgs,
+                        `return function ${funcname}(${fArgs.join(
+                          ", "
+                        )}) {${fBody}}`
+                      )();
+                      break;
+                    case "json":
                       break;
                     default:
                       d[k] = isJSON(d[k]) ? JSON.parse(d[k]) : d[k];
@@ -310,16 +400,25 @@ export class RedisObjects extends events.EventEmitter {
             default:
               workingObject = {};
               throw new Error(
-                `RedisObjects getObject ERROR: Unmatched type '${type}'.`
+                `RedisObjects get ERROR: Unmatched type '${type}'.`
               );
           }
         }
 
         resolve(workingObject[path] || {});
       } catch (err) {
-        throw new Error(`RedisObjects getObject ERROR: ${err}`);
+        console.log(`RedisObjects get ERROR: ${err}`);
+        throw new Error(`RedisObjects get ERROR: ${err}`);
       }
     });
+  }
+
+  async ping() {
+    try {
+      return await this.client.ping();
+    } catch (err) {
+      throw new Error(`RedisObjects ping ERROR: ${err}`);
+    }
   }
 
   /**
@@ -376,6 +475,7 @@ export class RedisObjects extends events.EventEmitter {
           const wrk = flatten(value, { delimiter: ":", safe: true });
           for (const k in wrk) {
             const [apath, alast] = this._extractFinalSegment(k);
+
             await this._saveItem({
               key: `${key}${path ? ":" + path : ""}${apath ? ":" + apath : ""}`,
               item: alast,
@@ -402,3 +502,4 @@ export class RedisObjects extends events.EventEmitter {
     }
   }
 }
+module.exports = RedisObjects;

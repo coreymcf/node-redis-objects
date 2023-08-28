@@ -10,7 +10,7 @@
  * @param {*} value - Input value
  * @returns String - Type
  */
-export const getValueType = (value) => {
+exports.getValueType = (value) => {
   const type = typeof value;
   return value === null
     ? "null"
@@ -32,7 +32,7 @@ export const getValueType = (value) => {
  * @param {string} str
  * @returns
  */
-export const isJSON = (str) => {
+exports.isJSON = (str) => {
   try {
     if (typeof str !== "string") return false;
     const obj = JSON.parse(str);
