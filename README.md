@@ -158,3 +158,7 @@ someObject:key2:b = 9876
 ### close()
 
 Closes Redis connection.
+
+```js
+redisObjects.close();
+```
