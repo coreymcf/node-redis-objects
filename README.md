@@ -4,12 +4,13 @@ Redis Objects - Storage Interface for Javascript Objects
 
 # Overview
 
-Easily store and retrieve multi-layered objects in [Redis](http://redis.io), including preservation of complex data structures and original data types. Includes an optional object cache abstraction layer that saves data changes in real-time to Redis.
+Easy to use package for storing objects in [Redis](http://redis.io), including preservation of complex data structures and original data types. Includes an optional object cache abstraction layer that saves data changes in real-time to Redis.
 
 # Features
 
 - Easily store and retrieve objects from Redis.
 - Handles complex structures and data types.
+- Method to ensure changes are saved in execution sequence.
 - Compatible with on-change package. (see examples)
 
 # How Data Is Stored
