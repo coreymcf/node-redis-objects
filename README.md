@@ -1,6 +1,6 @@
-# redis-objects
+# node-redis-objects
 
-Redis Objects - Storage Interface for Javascript Objects
+Node Redis Objects - Storage Interface for Javascript Objects
 
 # Overview
 
@@ -53,7 +53,7 @@ $ npm install redis-objects
 
 ```javascript
 // Start by importing redis-objects.
-const RedisObjects = require("redis-objects");
+const RedisObjects = require("node-redis-objects");
 
 // Create new RedisObjects interface (config optional)
 const redisObjects = new RedisObjects();
