@@ -524,7 +524,7 @@ class RedisObjects extends events.EventEmitter {
       this.queue.push(i);
       this.processQueue();
     } catch (err) {
-      this.u.e(err);
+      throw new Error(`RedisObjects queueUpdate ERROR: ${err}`);
     }
   }
 
@@ -542,7 +542,7 @@ class RedisObjects extends events.EventEmitter {
       this.queueLock = false;
       this.queue.length > 0 && this.processQueue();
     } catch (err) {
-      this.u.e(err);
+      throw new Error(`RedisObjects processQueue ERROR: ${err}`);
     }
   }
 }
