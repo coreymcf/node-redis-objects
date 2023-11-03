@@ -110,7 +110,6 @@ someObject:key2:a = key2 a string
 someObject:key2:b = false
 someObject:key1 = 1234
 someObject:key2:b.meta = {"type":"boolean"}
-
 ```
 
 ### get( objectName )
