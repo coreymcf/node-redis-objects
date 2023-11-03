@@ -21,7 +21,7 @@ Easily store and retrieve multi-layered objects in [Redis](http://redis.io), inc
 Using NPM:
 
 ```
-$ npm install redis-json
+$ npm install redis-objects
 ```
 
 ## Basic Usage
@@ -32,6 +32,14 @@ const RedisObjects = require("redis-objects");
 
 // Create new RedisObjects interface (config optional)
 const redisObjects = new RedisObjects();
+
+// Save an object
+await redisObjects.put("test", {
+  a: "a",
+});
+
+// Get an object
+const test = await redisObjects.get("test");
 ```
 
 ## Config
@@ -54,14 +62,6 @@ const redisObjects = new RedisObjects(config);
 ```
 
 ## Commands
-
-### getObject( path )
-
-Get an object from redis recursively
-
-```js
-const storedObject = await redisObjects.getObject("someObject");
-```
 
 ### put( objectName, objectValue, ttl )
 
