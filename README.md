@@ -1,13 +1,14 @@
 # redis-objects
+
 Redis Objects - Storage Interface for Javascript Objects
 
 # Overview
-Easily store and retrieve multi-layered objects in [Redis](http://redis.io), including preservation of complex data structures and original data types.  Includes an optional object cache abstraction layer that saves data changes in real-time to Redis.
+
+Easily store and retrieve multi-layered objects in [Redis](http://redis.io), including preservation of complex data structures and original data types. Includes an optional object cache abstraction layer that saves data changes in real-time to Redis.
 
 # Features
 
- (placeholder)
-
+(placeholder)
 
 # How Data Is Stored
 
@@ -18,34 +19,36 @@ Easily store and retrieve multi-layered objects in [Redis](http://redis.io), inc
 ## Installation
 
 Using NPM:
+
 ```
 $ npm install redis-json
 ```
 
 ## Basic Usage
 
-``` javascript
+```javascript
 // Start by importing redis-objects.
-const RedisObjects = require('redis-objects');
+const RedisObjects = require("redis-objects");
 
 // Create new RedisObjects interface (config optional)
-const redisObjects = new RedisObjects(); 
+const redisObjects = new RedisObjects();
 ```
 
 ## Config
+
 ```js
 const config = {
-    redis: false,           // Supply already-created ioRedis connection 
-                            // (spawns its own if absent)
+  redis: false, // Supply already-created ioRedis connection
+  // (spawns its own if absent)
 
-    ioRedisOptions: false,  // ioRedis connection options (optional, connects 
-                            // to localhost:6379 if absent)
+  ioRedisOptions: false, // ioRedis connection options (optional, connects
+  // to localhost:6379 if absent)
 
-    storagePath: false,     // Optional root redis path, ie "cache"
+  storagePath: false, // Optional root redis path, ie "cache"
 
-    cacheMode: false,       // Optional values: false,"realtime","snapshot" 
-                            // By default (or false), no caching is used
-}
+  cacheMode: false, // Optional values: false,"realtime","snapshot"
+  // By default (or false), no caching is used
+};
 
 const redisObjects = new RedisObjects(config);
 ```
@@ -60,38 +63,94 @@ Get an object from redis recursively
 const storedObject = await redisObjects.getObject("someObject");
 ```
 
-
-### put( objectName, objectValue ) 
+### put( objectName, objectValue, ttl )
 
 Writes an object to Redis
+(Promise, use await or standard Promise chains)
 
 ```js
-
 await redisObjects.put("someObject", {
-    key1: "1234",
-    key2: {
-        a: "key2 a string",
-        b: false
-    }
+  key1: "1234",
+  key2: {
+    a: "key2 a string",
+    b: false,
+  },
 });
+```
 
-/*
-    Stores: (placeholder)
-*/
+Stores
+
+```
+someObject:key2:a = key2 a string
+someObject:key2:b = false
+someObject:key1 = 1234
+someObject:key2:b.meta = {"type":"boolean"}
 
 ```
 
-### updateObject ( { path, value, key, oldValue, ttl } )
+### get( objectName )
 
-Save (or delete) object values.  (Structurally compatible with on-change package.)
+Gets an object from Redis
+(Promise, use await or standard Promise chains)
 
 ```js
-await redisObjects.updateObject({
-    path: `someObject`,
-    value: "1234",
-    key: `key1`,
-    oldValue: false,
-    ttl: false,
+await redisObjects.get("someObject");
+```
+
+Returns
+
+```json
+{
+  "key1": "1234",
+  "key2": {
+    "a": "key2 a string",
+    "b": false
+  }
+}
+```
+
+### update ( { name, path, value, oldValue, ttl } )
+
+Save (or delete) object values. (Structurally compatible with on-change package.)
+(Promise, use await or standard Promise chains)
+
+Note: When using the on-change package, see the 'queueUpdate' method below.
+
+```js
+await redisObjects.update({
+  name: `someObject`, // Object name
+  path: `key2.b`,
+  value: "9876",
+  oldValue: false, // Optional, supplied by on-change. (oldValue=value is skipped)
+  ttl: false, // Optional TTL (in seconds)
 });
 ```
 
+Stores
+
+```
+someObject:key2:b = 9876
+```
+
+### queueUpdate ( { name, path, value, oldValue, ttl } )
+
+Queue a request to save (or delete) object values. (Structurally compatible with on-change package.)
+(Promise, use await or standard Promise chains)
+
+The update queue is utilized to ensure changes are processed in the order received.
+
+```js
+await redisObjects.queueUpdate({
+  name: `someObject`, // Object name
+  path: `key2.b`,
+  value: "9876",
+  oldValue: false, // Optional, supplied by on-change. (oldValue=value is skipped)
+  ttl: false, // Optional TTL (in seconds)
+});
+```
+
+Stores
+
+```
+someObject:key2:b = 9876
+```

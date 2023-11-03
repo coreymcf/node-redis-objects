@@ -9,17 +9,12 @@ const isEqual = require("lodash.isequal");
 const events = require("events");
 const flatten = require("flat");
 const { getValueType, isJSON } = require("./utls.js");
-//import Redis from "ioredis";
-// import isEqual from "lodash/isEqual.js";
-// import events from "events";
-// import flatten from "flat";
-// import { getValueType, isJSON } from "./utls.mjs";
 
 class RedisObjects extends events.EventEmitter {
   constructor(props) {
     super(props);
 
-    this.storagePath = props?.storagePath ? props.storagePath + ":" : false;
+    this.storagePath = props?.storagePath ? props.storagePath : false;
 
     this.queue = []; // Update queue
     this.queueLock = false; // Update lock
@@ -117,16 +112,34 @@ class RedisObjects extends events.EventEmitter {
    * @param {int} i.ttl - TTL (secs) (optional)
    * @returns Promise
    */
-  async _saveItem({ key, item, value, ttl = false }) {
+  async _saveItem({ key, item, value, ttl = false, oldValue }) {
     try {
       const redis = this.client;
       let type = getValueType(value);
+      const oldType = getValueType(oldValue);
 
+      key = this.storagePath ? this.storagePath + ":" + key : key;
       const fullKey = item ? `${key}:${item}` : key;
+
       const metaKey = `${fullKey}.meta`;
       let setMeta = false;
 
-      // Type checking
+      // Delete old meta key (if applicable)
+      switch (oldType) {
+        case "number":
+        case "raw":
+        case "json":
+        case "boolean":
+        case "function":
+        case "null":
+        case "map":
+        case "set":
+          await redis.del(metaKey);
+          break;
+        default:
+      }
+
+      // Save
       switch (type) {
         case "string":
           if (item) {
@@ -244,16 +257,6 @@ class RedisObjects extends events.EventEmitter {
       } else {
         return await this.client.call(cmd);
       }
-
-      if (this.client[`${cmd}`]) {
-        if (params) {
-          return await this.client[`${cmd}`](params);
-        } else {
-          return await this.client[`${cmd}`];
-        }
-      } else {
-        throw new Error(`RedisObjects exec ERROR: Command not found '${cmd}'.`);
-      }
     } catch (err) {
       throw new Error(`RedisObjects exec ERROR: ${err}`);
     }
@@ -283,6 +286,8 @@ class RedisObjects extends events.EventEmitter {
     return new Promise(async (resolve) => {
       try {
         const redis = this.client;
+        const originalPath = path;
+        path = this.storagePath ? this.storagePath + ":" + path : path;
         let workingObject = {};
         let workingChildren = [];
         let [ix, children] = [false, []];
@@ -405,7 +410,11 @@ class RedisObjects extends events.EventEmitter {
           }
         }
 
-        resolve(workingObject[path] || {});
+        resolve(
+          originalPath !== path
+            ? workingObject[this.storagePath][originalPath]
+            : workingObject[path] || workingObject
+        );
       } catch (err) {
         console.log(`RedisObjects get ERROR: ${err}`);
         throw new Error(`RedisObjects get ERROR: ${err}`);
@@ -430,10 +439,10 @@ class RedisObjects extends events.EventEmitter {
    */
   async put(name, value, ttl = false) {
     try {
-      return await this.updateObject({
+      return await this.update({
         path: false, // Not needed for root-level storage
         value,
-        key: name,
+        name,
         oldValue: false, // Always save
         ttl,
       });
@@ -445,13 +454,13 @@ class RedisObjects extends events.EventEmitter {
   /**
    * Save (or delete) object values
    * @param {object} i - Input object
+   * @param {string} i.name - Object name
    * @param {string} i.path - Object path to data (x.y.z)
    * @param {*} i.value - New value or undefined
-   * @param {string} i.key - Object name
    * @param {*} i.oldValue - Old value
    * @param {int} i.ttl - TTL in seconds
    */
-  async updateObject({ path, value, key, oldValue, ttl }) {
+  async update({ name, path, value, oldValue, ttl }) {
     try {
       if (isEqual(value, oldValue)) {
         return false;
@@ -471,34 +480,69 @@ class RedisObjects extends events.EventEmitter {
         if (Object.keys(value).length === 0) {
           deleting = true;
         } else {
-          await this._deleteKeyPath(key, path);
+          await this._deleteKeyPath(name, path);
           const wrk = flatten(value, { delimiter: ":", safe: true });
           for (const k in wrk) {
             const [apath, alast] = this._extractFinalSegment(k);
 
             await this._saveItem({
-              key: `${key}${path ? ":" + path : ""}${apath ? ":" + apath : ""}`,
+              key: `${name}${path ? ":" + path : ""}${
+                apath ? ":" + apath : ""
+              }`,
               item: alast,
               value: wrk[k],
               ttl,
+              oldValue,
             });
           }
         }
       } else {
         await this._saveItem({
-          key: tp ? `${key}:${tp}` : key,
+          key: tp ? `${name}:${tp}` : name,
           item: tk || path,
           value,
           ttl,
+          oldValue,
         });
       }
 
       if (deleting) {
-        await this._deleteKeyPath(key, path);
+        await this._deleteKeyPath(name, path);
       }
       return true;
     } catch (err) {
-      throw new Error(`RedisObjects updateObject ERROR: ${err}`);
+      throw new Error(`RedisObjects update ERROR: ${err}`);
+    }
+  }
+
+  /**
+   * Add input object to this.queue and exec this.processQueue()
+   * @param {object} i - Input object
+   */
+  async queueUpdate(i) {
+    try {
+      this.queue.push(i);
+      this.processQueue();
+    } catch (err) {
+      this.u.e(err);
+    }
+  }
+
+  /**
+   * Run await updateObject() for each object in this.queue, w/lock
+   */
+  async processQueue() {
+    try {
+      if (this.queueLock) return;
+      this.queueLock = true;
+      let i;
+      while ((i = this.queue.shift())) {
+        await this.update(i);
+      }
+      this.queueLock = false;
+      this.queue.length > 0 && this.processQueue();
+    } catch (err) {
+      this.u.e(err);
     }
   }
 }
