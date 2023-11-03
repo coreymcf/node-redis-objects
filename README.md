@@ -8,11 +8,35 @@ Easily store and retrieve multi-layered objects in [Redis](http://redis.io), inc
 
 # Features
 
-(placeholder)
+- Easily store and retrieve objects from Redis.
+- Handles complex structures and data types.
+- Compatible with on-change package. (see examples)
 
 # How Data Is Stored
 
-(placeholder, show how data is stored in Redis)
+Objects are automatically "flattened" via ":" separators so they can be stored in Redis and "unflattened" when retrieved.
+
+```json
+{
+  "foo": true,
+  "a": {
+    "b": [
+      {
+        "c": true
+      }
+    ]
+  }
+}
+```
+
+Is stored in Redis as:
+
+```
+object:foo = true
+object:foo.meta = {"type":"boolean"}
+object:a:b:0:c = true
+object:a:b:0:c.meta = {"type":"boolean"}
+```
 
 # Getting Started
 
