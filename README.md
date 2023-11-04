@@ -46,7 +46,7 @@ object:a:b:0:c.meta = {"type":"boolean"}
 Using NPM:
 
 ```
-$ npm install redis-objects
+$ npm install node-redis-objects
 ```
 
 ## Basic Usage
