@@ -151,7 +151,7 @@ class RedisObjects extends events.EventEmitter {
         case "null":
         case "map":
         case "set":
-          await redis.del(metaKey);
+          redis.del(metaKey);
           break;
         default:
       }
@@ -180,7 +180,7 @@ class RedisObjects extends events.EventEmitter {
         case "raw":
         case "json":
         case "boolean":
-          await redis.set(metaKey, JSON.stringify({ type }));
+          redis.set(metaKey, JSON.stringify({ type }));
           setMeta = true;
           if (item) {
             await redis.hset(key, item, value);
@@ -218,7 +218,7 @@ class RedisObjects extends events.EventEmitter {
         case "null":
         case "map":
         case "set":
-          await redis.set(metaKey, JSON.stringify({ type }));
+          redis.set(metaKey, JSON.stringify({ type }));
           setMeta = true;
 
           const saveThis =
