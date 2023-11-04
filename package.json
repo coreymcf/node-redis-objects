@@ -1,6 +1,6 @@
 {
   "name": "node-redis-objects",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Redis Storage Interface for Javascript Objects",
   "main": "index.js",
   "scripts": {
