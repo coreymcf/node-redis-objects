@@ -235,15 +235,14 @@ await redisObjects.flushall();
 
 Events are passthrough from ioredis.
 
-| Event   | Description                                                                                                                                                                                                                                     |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| connect | emits when a connection is established to the Redis server.                                                                                                                                                                                     |
-| ready   | If `enableReadyCheck` is `true`, client will emit `ready` when the server reports that it is ready to receive commands (e.g. finish loading data from disk).<br>Otherwise, `ready` will be emitted immediately right after the `connect` event. |
-
-| error | emits when an error occurs while connecting.<br>However, ioredis emits all `error` events silently (only emits when there's at least one listener) so that your application won't crash if you're not listening to the `error` event. |
-| close | emits when an established Redis server connection has closed. |
-| reconnecting | emits after `close` when a reconnection will be made. The argument of the event is the time (in ms) before reconnecting. |
-| end | emits after `close` when no more reconnections will be made, or the connection is failed to establish. |
-| wait | emits when `lazyConnect` is set and will wait for the first command to be called before connecting. |
+| Event        | Description                                                                                                                                                                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| connect      | emits when a connection is established to the Redis server.                                                                                                                                                                                     |
+| ready        | If `enableReadyCheck` is `true`, client will emit `ready` when the server reports that it is ready to receive commands (e.g. finish loading data from disk).<br>Otherwise, `ready` will be emitted immediately right after the `connect` event. |
+| error        | emits when an error occurs while connecting.<br>However, ioredis emits all `error` events silently (only emits when there's at least one listener) so that your application won't crash if you're not listening to the `error` event.           |
+| close        | emits when an established Redis server connection has closed.                                                                                                                                                                                   |
+| reconnecting | emits after `close` when a reconnection will be made. The argument of the event is the time (in ms) before reconnecting.                                                                                                                        |
+| end          | emits after `close` when no more reconnections will be made, or the connection is failed to establish.                                                                                                                                          |
+| wait         | emits when `lazyConnect` is set and will wait for the first command to be called before connecting.                                                                                                                                             |
 
 (Refer to ioredis documentation for more information on these events.)
