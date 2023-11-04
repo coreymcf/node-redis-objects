@@ -53,7 +53,7 @@ $ npm install redis-objects
 
 ```javascript
 // Start by importing redis-objects.
-const RedisObjects = require("node-redis-objects");
+const RedisObjects = require("node-redis-objects"); // or: import RedisObjects from "node-redis-objects"
 
 // Create new RedisObjects interface (config optional)
 const redisObjects = new RedisObjects();
