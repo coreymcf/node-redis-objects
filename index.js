@@ -59,10 +59,6 @@ class RedisObjects extends events.EventEmitter {
     this.client.on("wait", () => {
       this.emit("wait", `RedisObjects Waiting for first command...`);
     });
-
-    /**
-     * @todo Add reconnect handling
-     */
   }
 
   /**
