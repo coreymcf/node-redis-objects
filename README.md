@@ -71,16 +71,10 @@ const test = await redisObjects.get("test");
 
 ```js
 const config = {
-  redis: false, // Supply already-created ioRedis connection
-  // (spawns its own if absent)
-
-  ioRedisOptions: false, // ioRedis connection options (optional, connects
-  // to localhost:6379 if absent)
-
+  redis: false, // Supply already-created ioRedis connection (spawns its own if absent)
+  ioRedisOptions: false, // ioRedis connection options (optional, connects to localhost:6379 if absent)
   storagePath: false, // Optional root redis path, ie "cache"
-
-  cacheMode: false, // Optional values: false,"realtime","snapshot"
-  // By default (or false), no caching is used
+  heartbeat: 1000, // Optional value: interval (in ms)
 };
 
 const redisObjects = new RedisObjects(config);
@@ -186,3 +180,70 @@ Closes Redis connection.
 ```js
 redisObjects.close();
 ```
+
+### call()
+
+Call an arbitrary ioredis command. (See ioredis/redis for commands documentation.)
+
+```js
+const redisDbSize = await redisObjects.call("dbsize");
+```
+
+### ping()
+
+Redis PING. Returns PONG.
+
+```js
+await redisObjects.ping();
+```
+
+### getLastHeartbeat()
+
+Returns timestamp from last RedisObjects heartbeat. (Useful for testing age of data is using in a caching application.)
+
+```js
+const lastHeartbeat = await redisObjects.getLastHeartbeat();
+const downMs = lastHeartbeat > 0 ? Math.floor(+Date.now() - lastHeartbeat) : 0;
+const cacheDownSecs = downMs > 0 ? Math.ceil(downMs / 1000) : 0;
+```
+
+### startHeartBeat( interval )
+
+Starts a loop with the optional interval (default 1000ms), updating the "redisObjectsHeartbeat" with the current timestamp. This happens automatically if the config parameter `heartbeat` is set.
+
+```js
+redisObjects.startHeartBeat();
+```
+
+### writeHeartBeat()
+
+Writes the current timestamp to "redisObjectsHeartbeat".
+
+```js
+redisObjects.writeHeartBeat();
+```
+
+### flushall()
+
+Flushes (erases) entire Redis database.
+
+```js
+await redisObjects.flushall();
+```
+
+## Events
+
+Events are passthrough from ioredis.
+
+| Event   | Description                                                                                                                                                                                                                                     |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| connect | emits when a connection is established to the Redis server.                                                                                                                                                                                     |
+| ready   | If `enableReadyCheck` is `true`, client will emit `ready` when the server reports that it is ready to receive commands (e.g. finish loading data from disk).<br>Otherwise, `ready` will be emitted immediately right after the `connect` event. |
+
+| error | emits when an error occurs while connecting.<br>However, ioredis emits all `error` events silently (only emits when there's at least one listener) so that your application won't crash if you're not listening to the `error` event. |
+| close | emits when an established Redis server connection has closed. |
+| reconnecting | emits after `close` when a reconnection will be made. The argument of the event is the time (in ms) before reconnecting. |
+| end | emits after `close` when no more reconnections will be made, or the connection is failed to establish. |
+| wait | emits when `lazyConnect` is set and will wait for the first command to be called before connecting. |
+
+(Refer to ioredis documentation for more information on these events.)

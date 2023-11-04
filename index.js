@@ -38,9 +38,26 @@ class RedisObjects extends events.EventEmitter {
       this.emit("connect", `RedisObjects connected to Redis.`);
     });
 
+    this.client.on("ready", () => {
+      this.emit("ready", `RedisObjects ready to receive commands.`);
+
+      props?.heartbeat && this.startHeartBeat(props.heartbeat);
+    });
+
     this.client.on("error", (err) => {
-      console.log(`error`, err);
-      this.emit("error", `RedisObjects error ${err}`);
+      this.emit("error", err);
+    });
+
+    this.client.on("close", () => {
+      this.emit("close", `RedisObjects connection closed.`);
+    });
+
+    this.client.on("end", () => {
+      this.emit("end", `RedisObjects connection ended.`);
+    });
+
+    this.client.on("wait", () => {
+      this.emit("wait", `RedisObjects Waiting for first command...`);
     });
 
     /**
@@ -416,17 +433,54 @@ class RedisObjects extends events.EventEmitter {
             : workingObject[path] || workingObject
         );
       } catch (err) {
-        console.log(`RedisObjects get ERROR: ${err}`);
         throw new Error(`RedisObjects get ERROR: ${err}`);
       }
     });
   }
 
+  /**
+   * Get last heartbeat (epbxHeartbeat) timestamp
+   * @returns integer
+   */
+  getLastHeartbeat() {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const hb = await this.client.get("redisObjectsHeartbeat");
+        resolve(hb || 0);
+      } catch (err) {
+        resolve(0);
+        throw new Error(`RedisObjects getLastHeartbeat ERROR: ${err}`);
+      }
+    });
+  }
+
+  /**
+   * redis ping
+   * @returns PONG
+   */
   async ping() {
     try {
       return await this.client.ping();
     } catch (err) {
       throw new Error(`RedisObjects ping ERROR: ${err}`);
+    }
+  }
+
+  /**
+   * Run await updateObject() for each object in this.queue, w/lock
+   */
+  async processQueue() {
+    try {
+      if (this.queueLock) return;
+      this.queueLock = true;
+      let i;
+      while ((i = this.queue.shift())) {
+        await this.update(i);
+      }
+      this.queueLock = false;
+      this.queue.length > 0 && this.processQueue();
+    } catch (err) {
+      throw new Error(`RedisObjects processQueue ERROR: ${err}`);
     }
   }
 
@@ -448,6 +502,32 @@ class RedisObjects extends events.EventEmitter {
       });
     } catch (err) {
       throw new Error(`RedisObjects put ERROR: ${err}`);
+    }
+  }
+
+  /**
+   * Add input object to this.queue and exec this.processQueue()
+   * @param {object} i - Input object
+   */
+  async queueUpdate(i) {
+    try {
+      this.queue.push(i);
+      this.processQueue();
+    } catch (err) {
+      throw new Error(`RedisObjects queueUpdate ERROR: ${err}`);
+    }
+  }
+
+  /**
+   * Start system heartbeat record (1000ms loop)
+   */
+  startHeartBeat(interval = 1000) {
+    try {
+      setInterval(async () => {
+        await this.client.set("redisObjectsHeartbeat", +Date.now());
+      }, interval);
+    } catch (err) {
+      throw new Error(`RedisObjects startHeartBeat ERROR: ${err}`);
     }
   }
 
@@ -516,33 +596,13 @@ class RedisObjects extends events.EventEmitter {
   }
 
   /**
-   * Add input object to this.queue and exec this.processQueue()
-   * @param {object} i - Input object
+   * Save current heartbeat
    */
-  async queueUpdate(i) {
+  async writeHeartBeat() {
     try {
-      this.queue.push(i);
-      this.processQueue();
+      await this.client.set("redisObjectsHeartbeat", +Date.now());
     } catch (err) {
-      throw new Error(`RedisObjects queueUpdate ERROR: ${err}`);
-    }
-  }
-
-  /**
-   * Run await updateObject() for each object in this.queue, w/lock
-   */
-  async processQueue() {
-    try {
-      if (this.queueLock) return;
-      this.queueLock = true;
-      let i;
-      while ((i = this.queue.shift())) {
-        await this.update(i);
-      }
-      this.queueLock = false;
-      this.queue.length > 0 && this.processQueue();
-    } catch (err) {
-      throw new Error(`RedisObjects processQueue ERROR: ${err}`);
+      this.u.e(err);
     }
   }
 }
