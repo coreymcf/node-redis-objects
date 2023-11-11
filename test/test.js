@@ -6,7 +6,10 @@ describe("RedisObjects", function () {
   // Non storagePath
 
   describe("Root Level (no storagePath) Tests", function () {
-    const redisObjects = new RedisObjects({ storagePath: "" });
+    const redisObjects = new RedisObjects({
+      storagePath: "",
+      allowFunctions: true,
+    });
 
     describe("ping()", function () {
       it("Should return a PONG", async function () {
@@ -151,7 +154,10 @@ describe("RedisObjects", function () {
   });
 
   describe("storagePath Tests", function () {
-    const redisObjects = new RedisObjects({ storagePath: "storagePath" });
+    const redisObjects = new RedisObjects({
+      storagePath: "storagePath",
+      allowFunctions: true,
+    });
 
     describe("ping()", function () {
       it("Should return a PONG", async function () {

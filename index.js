@@ -15,6 +15,7 @@ class RedisObjects extends events.EventEmitter {
     super(props);
 
     this.storagePath = props?.storagePath ? props.storagePath : false;
+    this.allowFunctions = props?.allowFunctions ? props.allowFunctions : false; // Safety flag
 
     this.queue = []; // Update queue
     this.queueLock = false; // Update lock
@@ -350,33 +351,37 @@ class RedisObjects extends events.EventEmitter {
                       d[k] = isJSON(d[k]) ? new Set(JSON.parse(d[k])) : d[k];
                       break;
                     case "es6_function":
-                      const efunc = JSON.parse(d[k]) || "";
-                      const efax = efunc.match(/\(([^)]*)\)/);
-                      const efArgs = efax
-                        ? efax[1].split(",").map((arg) => arg.trim())
-                        : [];
-                      const efBody = (efunc.match(/(?<={)([\s\S]*)(?=})/) || [
-                        "",
-                      ])[0];
-                      d[k] = eval(`(${efArgs.join(", ")}) => {${efBody}}`);
+                      if (this.allowFunctions) {
+                        const efunc = JSON.parse(d[k]) || "";
+                        const efax = efunc.match(/\(([^)]*)\)/);
+                        const efArgs = efax
+                          ? efax[1].split(",").map((arg) => arg.trim())
+                          : [];
+                        const efBody = (efunc.match(/(?<={)([\s\S]*)(?=})/) || [
+                          "",
+                        ])[0];
+                        d[k] = eval(`(${efArgs.join(", ")}) => {${efBody}}`);
+                      }
                       break;
                     case "function":
-                      const func = JSON.parse(d[k]) || "";
-                      const funcname = func.match(/^function (\w+)/) || "";
-                      const fax = func.match(/\(([^)]*)\)/);
-                      const fArgs = fax
-                        ? fax[1].split(",").map((arg) => arg.trim())
-                        : [];
-                      const fBody = (func.match(/(?<={)([\s\S]*)(?=})/) || [
-                        "",
-                      ])[0];
-                      //                      d[k] = new Function(...fArgs, fBody);
-                      d[k] = new Function(
-                        ...fArgs,
-                        `return function ${funcname}(${fArgs.join(
-                          ", "
-                        )}) {${fBody}}`
-                      )();
+                      if (this.allowFunctions) {
+                        const func = JSON.parse(d[k]) || "";
+                        const funcname = func.match(/^function (\w+)/) || "";
+                        const fax = func.match(/\(([^)]*)\)/);
+                        const fArgs = fax
+                          ? fax[1].split(",").map((arg) => arg.trim())
+                          : [];
+                        const fBody = (func.match(/(?<={)([\s\S]*)(?=})/) || [
+                          "",
+                        ])[0];
+                        //                      d[k] = new Function(...fArgs, fBody);
+                        d[k] = new Function(
+                          ...fArgs,
+                          `return function ${funcname}(${fArgs.join(
+                            ", "
+                          )}) {${fBody}}`
+                        )();
+                      }
                       break;
                     case "json":
                       break;

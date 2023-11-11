@@ -75,7 +75,8 @@ const test = await redisObjects.get("test");
 const config = {
   redis: false, // Supply already-created ioRedis connection (spawns its own if absent)
   ioRedisOptions: false, // ioRedis connection options (optional, connects to localhost:6379 if absent)
-  storagePath: false, // Optional root redis path, ie "cache"
+  storagePath: false, // Optional: root redis path, ie "cache"
+  allowFunctions: false, // Optional: 'true' allows objects containing functions to be stored (WARNING: Vulnerable to code injection if your Redis store is not secure.)
   heartbeat: 1000, // Optional value: interval (in ms)
 };
 
